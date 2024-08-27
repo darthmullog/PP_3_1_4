@@ -42,7 +42,7 @@ document.querySelector('#save-edits').addEventListener('click', event => {
     })
         .then(() => {
             $('#edit-modal').modal('hide');
-            // Обновите строку пользователя в таблице
+            
             const row = document.querySelector(`#users-table tbody tr[data-id="${user.id}"]`);
             row.querySelector('td:nth-child(2)').textContent = user.username;
             row.querySelector('td:nth-child(3)').textContent = user.email;
