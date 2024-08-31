@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container {
+            max-width: 900px;
+            margin-top: 50px;
+        }
+
+        .profile-section {
+            display: none;
+        }
+
+        #role-selection {
+            margin-bottom: 20px;
+        }
+
+        .role-buttons {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .main-content {
+            display: flex;
+        }
+
+        .main-content .role-buttons {
+            margin-right: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div id="role-selection" class="d-flex align-items-start mb-5">
+        <div class="role-buttons">
+            <button id="adminBtn" class="btn btn-primary d-none mb-2">Admin</button>
+            <button id="userBtn" class="btn btn-secondary d-none">User</button>
+        </div>
+        <div class="main-content flex-grow-1">
+            <div id="users-section" class="d-none">
+                <h1 class="mb-4">Users Table</h1>
+                <table class="table table-striped table-bordered" id="users-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Roles</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="mb-4">
+                    <button class="btn btn-primary mr-2" id="addUserBtn">New User</button>
+                    <button class="btn btn-danger" id="logoutBtn">Log Out</button>
+                </div>
+            </div>
+
+
+            <div id="profile-section" class="profile-section">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h1>User Profile</h1>
+                        <button id="logoutProfileBtn" class="btn btn-danger">Log Out</button>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Username:</strong> <span id="profile-username"></span></p>
+                        <p><strong>Email:</strong> <span id="profile-email"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="userModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="form-title">Add User</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" class="form-control" id="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" class="form-control" id="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Roles</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="roleAdmin">
+                                <label class="form-check-label" for="roleAdmin">ROLE_ADMIN</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="roleUser">
+                                <label class="form-check-label" for="roleUser">ROLE_USER</label>
+                            </div>
+                        </div>
+                        <input type="hidden" id="userId">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">Add User</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" id="cancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchUserRoles();
+
+
+        document.getElementById('adminBtn').addEventListener('click', () => {
+            document.getElementById('users-section').classList.remove('d-none');
+            document.getElementById('profile-section').classList.add('d-none');
+            fetchAndDisplayUsers();
+        });
+
+        document.getElementById('userBtn').addEventListener('click', () => {
+
+            if (userRoles.includes('ROLE_USER')) {
+                document.getElementById('users-section').classList.add('d-none');
+                document.getElementById('profile-section').classList.remove('d-none');
+                fetchUserProfile();
+            } else {
+                alert('You do not have permission to access this section.');
+
+            }
+        });
+
+        document.getElementById('logoutProfileBtn').addEventListener('click', () => {
+            fetch('/logout', {method: 'POST'}).then(() => location.reload());
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            fetch('/logout', {method: 'POST'}).then(() => location.reload());
+        });
+
+        document.getElementById('addUserBtn').addEventListener('click', () => {
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('form-title').textContent = 'Add User';
+            document.getElementById('submitBtn').textContent = 'Add User';
+            $('#userModal').modal('show');
+        });
+
+        document.getElementById('userForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const user = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                roles: []
+            };
+            if (document.getElementById('roleAdmin').checked) user.roles.push('ROLE_ADMIN');
+            if (document.getElementById('roleUser').checked) user.roles.push('ROLE_USER');
+
+            const userId = document.getElementById('userId').value;
+            if (userId) {
+                updateUser(userId, user);
+            } else {
+                createUser(user);
+            }
+        });
+    });
+
+    let userRoles = [];
+
+    function fetchUserRoles() {
+        fetch('http://localhost:8080/roles')
+            .then(response => response.json())
+            .then(data => {
+                userRoles = data.roles;
+                handleRoleRedirection(userRoles);
+            })
+            .catch(error => {
+                console.error('Error fetching roles:', error);
+                document.getElementById('role-selection').innerHTML = '<p>Error loading roles. Please try again later.</p>';
+            });
+    }
+
+    function handleRoleRedirection(roles) {
+        const adminBtn = document.getElementById('adminBtn');
+        const userBtn = document.getElementById('userBtn');
+
+        const hasAdminRole = roles.includes('ROLE_ADMIN');
+        const hasUserRole = roles.includes('ROLE_USER');
+
+        if (hasAdminRole && hasUserRole) {
+            adminBtn.classList.remove('d-none');
+            userBtn.classList.remove('d-none');
+        } else if (hasAdminRole) {
+            adminBtn.classList.remove('d-none');
+        } else if (hasUserRole) {
+            userBtn.classList.remove('d-none');
+            fetchUserProfile();
+        }
+    }
+
+    function fetchAndDisplayUsers() {
+        fetch('http://localhost:8080/admin')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector('#users-table tbody');
+                tableBody.innerHTML = '';
+
+                data.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                <td>${user.id}</td>
+                <td>${user.username}</td>
+                <td>${user.email}</td>
+                <td>${user.roles.map(role => role.name).join(', ')}</td>
+                <td>
+                    <button class="btn btn-info btn-sm" onclick="editUser(${user.id})">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>
+                </td>
+            `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Error fetching users:', error));
+    }
+
+    function fetchUserProfile() {
+        if (!userRoles.includes('ROLE_USER')) {
+
+            document.getElementById('profile-section').classList.add('d-none');
+            document.getElementById('users-section').classList.remove('d-none');
+            return;
+        }
+
+        console.log('Fetching user profile...');
+        fetch('http://localhost:8080/admin/myuser')
+            .then(response => response.json())
+            .then(user => {
+                console.log('User data:', user);
+                const profileSection = document.querySelector('.profile-section');
+                const usernameElement = document.getElementById('profile-username');
+                const emailElement = document.getElementById('profile-email');
+
+                if (profileSection) {
+                    profileSection.style.display = 'block';
+                }
+
+                if (usernameElement && emailElement) {
+                    usernameElement.textContent = user.username;
+                    emailElement.textContent = user.email;
+                } else {
+                    console.error('Profile elements not found!');
+                }
+            })
+            .catch(error => console.error('Error fetching user profile:', error));
+    }
+
+    function createUser(user) {
+        fetch('http://localhost:8080/admin/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(user)
+        })
+            .then(response => response.json())
+            .then(() => {
+                $('#userModal').modal('hide');
+                fetchAndDisplayUsers();
+            })
+            .catch(error => console.error('Error creating user:', error));
+    }
+
+    function updateUser(userId, user) {
+        fetch(`http://localhost:8080/admin/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(user)
+        })
+            .then(response => response.json())
+            .then(() => {
+                $('#userModal').modal('hide');
+                fetchAndDisplayUsers();
+            })
+            .catch(error => console.error('Error updating user:', error));
+    }
+
+    function deleteUser(userId) {
+        fetch(`http://localhost:8080/admin/${userId}`, {
+            method: 'DELETE'
+        })
+            .then(() => fetchAndDisplayUsers())
+            .catch(error => console.error('Error deleting user:', error));
+    }
+
+    function editUser(userId) {
+        fetch(`http://localhost:8080/admin/${userId}`)
+            .then(response => response.json())
+            .then(user => {
+                document.getElementById('username').value = user.username;
+                document.getElementById('email').value = user.email;
+                document.getElementById('userId').value = user.id;
+                document.getElementById('form-title').textContent = 'Edit User';
+                document.getElementById('submitBtn').textContent = 'Edit User';
+                $('#userModal').modal('show');
+            })
+            .catch(error => console.error('Error fetching user for editing:', error));
+    }
+
+
+</script>
+</body>
+</html>
